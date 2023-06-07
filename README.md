@@ -10,6 +10,12 @@ This is a maintenance fork of [nhkrecord/nhk-record](https://github.com/nhkrecor
 
 So please, watch the [relevant pull request](https://github.com/nhkrecord/nhk-record/pull/35) for any updates.
 
+## Config Change Notice
+
+If you are running an existing instance of nhk-record that has stopped working, please update the "streamURL" variable located in your `config.json` to the URL as follows:
+
+`"streamUrl": "https://nhkwlive-xjp.akamaized.net/hls/live/2003458/nhkwlive-xjp-en/index_1M.m3u8",`
+
 ## Dependencies
 
 - [Node.js](https://github.com/nodejs/node) `>= 15.x`
@@ -101,7 +107,7 @@ The location of the config file can be specified with the `-c` option.
   "safetyBuffer": 40000,
   "saveDir": "/recordings/",
   "scheduleUrl": "https://nwapi.nhk.jp",
-  "streamUrl": "https://b-nhkwlive-ojp.webcdn.stream.ne.jp/hls/live/2003459-b/nhkwlive-ojp-en/index_4M.m3u8",
+  "streamUrl": "https://nhkwlive-xjp.akamaized.net/hls/live/2003458/nhkwlive-xjp-en/index_1M.m3u8",
   "threadLimit": 0,
   "timeOffset": 0,
   "trim": true
