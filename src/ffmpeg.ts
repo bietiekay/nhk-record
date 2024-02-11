@@ -77,31 +77,43 @@ const MINIMUM_BOUNDARY_SILENCE_SECONDS = 0.1;
 const BOUNDARY_STRATEGIES = [
   {
     name: 'black-logo',
-    filters: [9],
-    minSilenceSeconds: 1.5,
-    minFrames: 5
-  },
-  {
-    name: 'white-logo',
     filters: [11],
     minSilenceSeconds: 1.5,
     minFrames: 5
   },
   {
-    name: 'white-borders-logo',
+    name: 'white-logo',
     filters: [13],
     minSilenceSeconds: 1.5,
     minFrames: 5
   },
   {
+    name: 'white-borders-logo',
+    filters: [15],
+    minSilenceSeconds: 1.5,
+    minFrames: 5
+  },
+  {
+    name: 'black-logo-ai-subtitles',
+    filters: [17],
+    minSilenceSeconds: 1.5,
+    minFrames: 5
+  },
+  {
+    name: 'black-no-logo-ai-subtitles',
+    filters: [19],
+    minSilenceSeconds: 1.5,
+    minFrames: 5
+  },
+  {
     name: 'no-logo',
-    filters: [14],
+    filters: [20],
     minSilenceSeconds: 0.1,
     minFrames: 3
   },
   {
     name: 'newsline',
-    filters: [16],
+    filters: [22],
     minSilenceSeconds: 0,
     minFrames: 1
   }
@@ -157,6 +169,8 @@ const getFfmpegBoundaryDetectionArguments = (
     ['-i', join(appRootPath.path, 'data/black_cropped.jpg')],
     ['-i', join(appRootPath.path, 'data/white_cropped.jpg')],
     ['-i', join(appRootPath.path, 'data/white_borders_cropped.jpg')],
+    ['-i', join(appRootPath.path, 'data/black_cropped_aisubs.jpg')],
+    ['-i', join(appRootPath.path, 'data/black_cropped_nologo_aisubs.jpg')],
     ['-i', join(appRootPath.path, 'data/newsline_intro.jpg')],
     [
       '-filter_complex',
@@ -166,19 +180,25 @@ const getFfmpegBoundaryDetectionArguments = (
         '[1]extractplanes=y[by]',
         '[2]extractplanes=y[wy]',
         '[3]extractplanes=y[wby]',
-        '[4]extractplanes=y[nly]',
+        '[4]extractplanes=y[bay]',
+        '[5]extractplanes=y[bnlay]',
+        '[6]extractplanes=y[nly]',
         '[vy]split=outputs=2[vy0][vy1]',
         // Crop top left corner
         '[vy0]crop=w=960:h=540:x=0:y=0[cvy]',
-        '[cvy]split=outputs=4[cvy0][cvy1][cvy2][cvy3]',
+        '[cvy]split=outputs=6[cvy0][cvy1][cvy2][cvy3][cvy4][cvy5]',
         // Detect black frames with logo
         '[cvy0][by]blend=difference,blackframe=99',
         // Detect white frames with logo
         '[cvy1][wy]blend=difference,blackframe=99:50',
         // Detect white frames with logo and border
         '[cvy2][wby]blend=difference,blackframe=99:50',
+        // Detect black frames with logo and AI Subtitle text
+        '[cvy3][bay]blend=difference,blackframe=99',
+        // Detect black frames with no logo, with AI Subtitle text
+        '[cvy4][bnlay]blend=difference,blackframe=99',
         // Detect black frames with no logo
-        '[cvy3]blackframe=99',
+        '[cvy5]blackframe=99',
         // Detect Newsline intro
         '[vy1][nly]blend=difference,blackframe=99',
         // Detect silences greater than MINIMUM_BOUNDARY_SILENCE_SECONDS
