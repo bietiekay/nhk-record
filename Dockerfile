@@ -1,6 +1,6 @@
-FROM jrottenberg/ffmpeg:4.3-alpine312 AS base
+FROM jrottenberg/ffmpeg:4.4.4-alpine313 AS base
 
-ENV NODE_VERSION 15.5.0
+ENV NODE_VERSION 20.11.1 
 
 RUN addgroup -g 1000 node \
     && adduser -u 1000 -G node -s /bin/sh -D node \
@@ -8,11 +8,12 @@ RUN addgroup -g 1000 node \
         libstdc++ \
     && apk add --no-cache --virtual .build-deps \
         curl \
+    && apk --print-arch \
     && ARCH= && alpineArch="$(apk --print-arch)" \
       && case "${alpineArch##*-}" in \
         x86_64) \
           ARCH='x64' \
-          CHECKSUM="2dae9e85dc69c7d7bb423ed87e9933c0b3a34c4ef5333753c7c8bb05f92f544c" \
+          CHECKSUM="5da733c21c3b51193a4fe9fc5be6cfa9a694d13b8d766eb02dbe4b8996547050" \
           ;; \
         *) ;; \
       esac \
@@ -36,17 +37,16 @@ RUN addgroup -g 1000 node \
         python3 \
     # gpg keys listed at https://github.com/nodejs/node#release-keys
     && for key in \
-      4ED778F539E3634C779C87C6D7062848A1AB005C \
-      94AE36675C464D64BAFA68DD7434390BDBE9B9C5 \
-      1C050899334244A8AF75E53792EF661D867B9DFA \
-      71DCFD284A79C3B38668286BC97EC7A07EDE3FC1 \
-      8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600 \
-      C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8 \
-      C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C \
-      DD8F2338BAE7501E3DD5AC78C273792F7D83545D \
-      A48C2BEE680E841632CD4E44F07496B3EB3C1762 \
-      108F52B48DB57BB0CC439B2997B01419BD92F80A \
-      B9E2F5981AA6E0CD28160D9FF13993A75599653C \
+    4ED778F539E3634C779C87C6D7062848A1AB005C \ 
+    141F07595B7B3FFE74309A937405533BE57C7D57 \ 
+    74F12602B6F1C4E913FAA37AD3A89613643B6201 \ 
+    DD792F5973C6DE52C432CBDAC77ABFA00DDBF2B7 \ 
+    8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600 \ 
+    C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8 \ 
+    890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4 \ 
+    C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C \ 
+    108F52B48DB57BB0CC439B2997B01419BD92F80A \ 
+    A363A499291CBBC940DD62E41F10027AF002F8B0 \
     ; do \
       gpg --batch --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
       gpg --batch --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
@@ -72,27 +72,27 @@ RUN addgroup -g 1000 node \
   && node --version \
   && npm --version
 
-ENV YARN_VERSION 1.22.5
+# ENV YARN_VERSION 1.22.5
 
-RUN apk add --no-cache --virtual .build-deps-yarn curl gnupg tar \
-  && for key in \
-    6A010C5166006599AA17F08146C2130DFD2497F5 \
-  ; do \
-    gpg --batch --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
-    gpg --batch --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
-    gpg --batch --keyserver hkp://pgp.mit.edu:80 --recv-keys "$key" ; \
-  done \
-  && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz" \
-  && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz.asc" \
-  && gpg --batch --verify yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz \
-  && mkdir -p /opt \
-  && tar -xzf yarn-v$YARN_VERSION.tar.gz -C /opt/ \
-  && ln -s /opt/yarn-v$YARN_VERSION/bin/yarn /usr/local/bin/yarn \
-  && ln -s /opt/yarn-v$YARN_VERSION/bin/yarnpkg /usr/local/bin/yarnpkg \
-  && rm yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz \
-  && apk del .build-deps-yarn \
-  # smoke test
-  && yarn --version
+# RUN apk add --no-cache --virtual .build-deps-yarn curl gnupg tar \
+#   && for key in \
+#     6A010C5166006599AA17F08146C2130DFD2497F5 \
+#   ; do \
+#     gpg --batch --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
+#     gpg --batch --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
+#     gpg --batch --keyserver hkp://pgp.mit.edu:80 --recv-keys "$key" ; \
+#   done \
+#   && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz" \
+#   && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz.asc" \
+#   && gpg --batch --verify yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz \
+#   && mkdir -p /opt \
+#   && tar -xzf yarn-v$YARN_VERSION.tar.gz -C /opt/ \
+#   && ln -s /opt/yarn-v$YARN_VERSION/bin/yarn /usr/local/bin/yarn \
+#   && ln -s /opt/yarn-v$YARN_VERSION/bin/yarnpkg /usr/local/bin/yarnpkg \
+#   && rm yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz \
+#   && apk del .build-deps-yarn \
+#   # smoke test
+#   && yarn --version
 
 ENV UID=1000 GID=1000
 RUN apk add --no-cache su-exec

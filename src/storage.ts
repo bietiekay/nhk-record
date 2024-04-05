@@ -33,7 +33,7 @@ const getSuffix = (suffixType: FileType, programme: Programme): string =>
     [FileType.IN_PROGRESS]: () => '.inprogress',
     [FileType.METADATA]: () => '.metadata',
     [FileType.RAW]: () => '.raw',
-    [FileType.SUCCESSFUL]: () => '',
+    [FileType.SUCCESSFUL]: () => '.mp4',
     [FileType.THUMBNAIL]: () => '.jpg',
     [FileType.POST_PROCESSED]: () => '.postprocessed'
   }[suffixType](programme));
@@ -61,7 +61,7 @@ export const getFilename = (programme: Programme): string => {
     parts.push(programme.subtitle);
   }
 
-  return sanitizeFilename(`${parts.join(' - ')}.mp4`).replace(/'/g, '');
+  return sanitizeFilename(`${parts.join(' - ')}`).replace(/'/g, '');
 };
 
 export const getSavePath = (programme: Programme): string =>

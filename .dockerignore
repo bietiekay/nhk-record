@@ -1,3 +1,6 @@
 Dockerfile
 node_modules
 .git
+compose.yml
+.devcontainers
+.github

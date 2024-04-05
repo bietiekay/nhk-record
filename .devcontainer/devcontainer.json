@@ -1,0 +1,9 @@
+
+{
+	"name": "Node.js",
+	// Not the exact alpine version as the Dockerfile source image but this is just for running occasional npm tasks.
+	"image": "node:20.11.1-alpine3.19",
+	"containerUser": "node",
+	"remoteUser": "node",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}"
+}
