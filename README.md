@@ -14,12 +14,12 @@ So please, watch the [relevant pull request](https://github.com/nhkrecord/nhk-re
 
 If you are running an existing instance of nhk-record that has stopped working, please update the "streamURL" variable located in your `config.json` to the URL as follows:
 
-`"streamUrl": "https://nhkwlive-xjp.akamaized.net/hls/live/2003458/nhkwlive-xjp-en/index_2M.m3u8",`
+`"streamUrl": "https://b-nhkwlive-ojp.nhkworld.jp/hls/live/2003459-b/nhkwlive-ojp-en/index_4M.m3u8",`
 
 ## Dependencies
 
-- [Node.js](https://github.com/nodejs/node) `>= 15.x`
-- [FFmpeg](https://github.com/FFmpeg/FFmpeg) `>= 4.3`
+- [Node.js](https://github.com/nodejs/node) `>= 20.11.1`
+- [FFmpeg](https://github.com/FFmpeg/FFmpeg) `>= 4.4.4`
 
 This software is only tested on Linux and macOS. For running on Windows, [Docker for Windows](https://docs.docker.com/docker-for-windows/install/) may be the best option. See [Running as a docker container](#running-as-a-docker-container).
 
@@ -107,7 +107,7 @@ The location of the config file can be specified with the `-c` option.
   "safetyBuffer": 40000,
   "saveDir": "/recordings/",
   "scheduleUrl": "https://nwapi.nhk.jp",
-  "streamUrl": "https://nhkwlive-xjp.akamaized.net/hls/live/2003458/nhkwlive-xjp-en/index_2M.m3u8",
+  "streamUrl": "https://b-nhkwlive-ojp.nhkworld.jp/hls/live/2003459-b/nhkwlive-ojp-en/index_4M.m3u8",
   "threadLimit": 0,
   "timeOffset": 0,
   "trim": true
