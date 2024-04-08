@@ -124,6 +124,14 @@ Match patterns use [micromatch](https://github.com/micromatch/micromatch). For e
 | Japanology and Lunch ON!   | `["*japanology*", "*lunch*"]`    |
 | Everything except Newsline | `["!(*newsline*\|*nl bridge*)"]` |
 
+### Crop & Trim
+
+These CPU-intensive features are enabled by default so be sure to disable them on resource-limited systems. 
+
+Additionally, the source materials they use for detection relies on the NHK World stream being in 1080p. **Using a lower resolution stream URL will result in crashes upon detection if trim or crop is enabled.**
+
+If you desire to use a lower resolution or if NHK discontinues the 1080p stream, disable these features.
+
 ## Running as a docker container
 
 Docker images are available on [Docker Hub](https://hub.docker.com/repository/docker/coordspace/nhk-record)
@@ -131,7 +139,6 @@ Docker images are available on [Docker Hub](https://hub.docker.com/repository/do
 Example docker-compose.yml:
 
 ```
-version: "3.7"
 services:
   nhk-record:
     image: coordspace/nhk-record:latest

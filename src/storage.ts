@@ -79,7 +79,7 @@ export const recordingExists = async (programme: Programme): Promise<boolean> =>
       stat(getInProgressPath(programme))
         .then((s) => Date.now() - s.mtimeMs < MAX_IN_PROGRESS_AGE)
         .catch(() => null),
-      stat(getSavePath(programme)).catch(() => null)
+        stat(`${getSavePath(programme)}${getSuffix(FileType.SUCCESSFUL, programme)}`).catch(() => null)
     ])
   ).some((s) => !!s);
 
