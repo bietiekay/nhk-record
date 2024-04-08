@@ -176,7 +176,7 @@ const getFfmpegBoundaryDetectionArguments = (
       '-filter_complex',
       [
         // Extract luma channels
-        '[0:0]scale=960:540,format=pix_fmts=yuv420p|yuv444p|yuv410p,extractplanes=y[vy]',
+        '[0:0]extractplanes=y[vy]',
         '[1]extractplanes=y[by]',
         '[2]extractplanes=y[wy]',
         '[3]extractplanes=y[wby]',

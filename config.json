@@ -7,7 +7,7 @@
   "logLevelFile": "debug",
   "matchPattern": ["*"],
   "minimumDuration": 240000,
-  "safetyBuffer": 5000,
+  "safetyBuffer": 40000,
   "saveDir": "/recordings/",
   "scheduleUrl": "https://nwapi.nhk.jp",
   "streamUrl": "https://b-nhkwlive-ojp.nhkworld.jp/hls/live/2003459-b/nhkwlive-ojp-en/index_4M.m3u8",
