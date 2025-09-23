@@ -1,6 +1,6 @@
-import fetch from 'node-fetch';
 import { pick } from 'ramda';
 import config from './config';
+import { NHK_REQUEST_HEADERS } from './nhk';
 import logger from './logger';
 import { now, parseDate } from './utils';
 
@@ -8,19 +8,21 @@ const SCHEDULE_BEGIN_OFFSET = -2 * 60 * 60 * 1000;
 const SCHEDULE_END_OFFSET = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHE_AGE = 60 * 60 * 1000;
 
-let scheduleData: Array<Programme> = null;
+let scheduleData: Array<Programme> | null = null;
 let scheduleDataTimestamp = 0;
 
 const getApiKey = async (): Promise<string> => {
   try {
     const res = await fetch(`${config.assetsUrl}/nhkworld/common/js/common.js`, {
-      headers: {
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'accept-language': 'en-US,en;q=0.9,ja;q=0.8',
-        'cache-control': 'no-cache',
-        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
-      }
+      headers: NHK_REQUEST_HEADERS
     });
+
+    if (!res.ok) {
+      throw new Error(
+        `Failed to fetch NHK common assets (status ${res.status} ${res.statusText})`
+      );
+    }
+
     const text = await res.text();
     const match = text.match(/window\.nw_api_key=window\.nw_api_key\|\|"(?<apiKey>[^"]+)"/);
     const apiKey = match?.groups?.apiKey;
@@ -44,16 +46,15 @@ const getScheduleForPeriod = async (apiKey: string, start: Date, end: Date): Pro
   const res = await fetch(
     `${config.scheduleUrl}/nhkworld/epg/v7b/world/s${startMillis}-e${endMillis}.json?apikey=${apiKey}`,
     {
-      headers: {
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'accept-language': 'en-US,en;q=0.9,ja;q=0.8',
-        'cache-control': 'no-cache',
-        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
-      }
+      headers: NHK_REQUEST_HEADERS
     }
   );
 
-  return await res.json();
+  if (!res.ok) {
+    throw new Error(`Failed to fetch NHK schedule (status ${res.status} ${res.statusText})`);
+  }
+
+  return (await res.json()) as Schedule;
 };
 
 export const getSchedule = async (): Promise<Array<Programme>> => {
@@ -69,7 +70,7 @@ export const getSchedule = async (): Promise<Array<Programme>> => {
   const rawSchedule = await getScheduleForPeriod(apiKey, start, end);
   const items = rawSchedule?.channel?.item;
 
-  if (items) {
+  if (items?.length) {
     return items.map((item) => ({
       ...pick(['title', 'subtitle', 'seriesId', 'airingId', 'description', 'thumbnail'])(item),
       content: item.content_clean,
@@ -77,7 +78,7 @@ export const getSchedule = async (): Promise<Array<Programme>> => {
       endDate: parseDate(item.endDate)
     }));
   } else {
-    throw new Error('Failed to retrieve schedule $(items)');
+    throw new Error('Failed to retrieve schedule (missing items array)');
   }
 };
 
@@ -107,7 +108,7 @@ export const getScheduleMemoized = async (): Promise<Array<Programme>> => {
   }
 };
 
-export const getCurrentProgramme = async (): Promise<Programme> => {
+export const getCurrentProgramme = async (): Promise<Programme | undefined> => {
   const programmes = await getScheduleMemoized();
   const currTime = now() + config.safetyBuffer;
 
