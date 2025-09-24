@@ -51,7 +51,7 @@ const CROPDETECT_FILTER_OUTPUT_PATTERN = new RegExp(
     .join(' ')
 );
 
-const FULL_CROP_WIDTH = 1920;
+const FULL_CROP_WIDTH = 1280;
 
 interface FrameSearchStrategy {
   name: string;
