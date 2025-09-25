@@ -155,6 +155,35 @@ export const getStreamCount = async (path: string): Promise<number> => {
   return parseInt(numStreams);
 };
 
+// Returns primary video stream dimensions using ffprobe so the pipeline
+// can size filters dynamically instead of assuming 1920x1080.
+export const getVideoDimensions = async (
+  path: string
+): Promise<{ width: number; height: number }> => {
+  const args = [
+    ['-v', 'error'],
+    ['-print_format', 'json'],
+    ['-select_streams', 'v:0'],
+    ['-show_entries', 'stream=width,height'],
+    ['-show_streams'],
+    path
+  ].flat();
+
+  logger.debug(`Invoking ffprobe with args: ${args.join(' ')}`);
+
+  const { stdout } = await execute('ffprobe', args);
+  const result = JSON.parse(stdout.join(''));
+  const stream = (result.streams ?? [])[0] ?? {};
+  const width = stream.width ?? stream.coded_width;
+  const height = stream.height ?? stream.coded_height;
+
+  if (!width || !height) {
+    throw new Error('Unable to read video dimensions');
+  }
+
+  return { width, height };
+};
+
 const getFfmpegBoundaryDetectionArguments = (
   path: string,
   from: number,
@@ -366,7 +395,9 @@ const getFfmpegCropDetectionArguments = (path: string, from: number, limit: numb
         '[0:0]extractplanes=y[vy]',
         '[1]extractplanes=y[iy]',
         // Find difference with news background
-        '[vy][iy]blend=difference,crop=1920:928:0:60,split=2[vc0][vc1]',
+        // Use input-relative crop (iw/ih) to keep the same region independent of resolution.
+        // ih*928/1080 approximates the original 928px (on 1080p); ih*60/1080 is the top offset.
+        '[vy][iy]blend=difference,crop=iw:floor(ih*928/1080):0:floor(ih*60/1080),split=2[vc0][vc1]',
         // Mirror content to get symmetrical crop
         '[vc0]hflip[vf]',
         '[vf][vc1]blend=addition,cropdetect=24:2:1'
@@ -444,45 +475,63 @@ export const captureStream = async (
   return outputLines;
 };
 
+// Produces an ffmpeg 'if' expression for a time-varying value derived from crop width.
+// defaultWidth binds computations to the actual output width rather than a hardcoded 1920.
 const generateTimeSequence = (
   calcValue: (w: number) => number,
-  cropParameters: Array<CropParameters>
+  cropParameters: Array<CropParameters>,
+  defaultWidth: number
 ) => {
-  const { time, width = FULL_CROP_WIDTH } = last(cropParameters) ?? {};
+  const { time, width = defaultWidth } = last(cropParameters) ?? {};
   if (!time) {
     return `${calcValue(width)}`;
   }
 
   return `if(gte(t,${time / 1000}),${calcValue(width)},${generateTimeSequence(
     calcValue,
-    init(cropParameters)
+    init(cropParameters),
+    defaultWidth
   )})`;
 };
 
-const calculateScaleWidth = (cropWidth: number): number =>
-  Math.round((FULL_CROP_WIDTH * FULL_CROP_WIDTH) / cropWidth / 2) * 2;
+// Factory: compute scaled width for a given crop width, bound to a dynamic target width.
+const makeCalculateScaleWidth = (outputWidth: number) => (cropWidth: number): number =>
+  Math.round((outputWidth * outputWidth) / cropWidth / 2) * 2;
 
-const calculateOverlayPosition = (cropWidth: number): number =>
-  Math.round((cropWidth - FULL_CROP_WIDTH) / 2);
+// Factory: compute horizontal overlay offset to center within the dynamic target width.
+const makeCalculateOverlayPosition = (outputWidth: number) => (cropWidth: number): number =>
+  Math.round((cropWidth - outputWidth) / 2);
 
+// Build the filter graph using the actual input dimensions to avoid 1920x1080 assumptions.
 const generateFilterChain = (
   start: number,
   cropParameters: Array<CropParameters>,
-  hasThumbnail: boolean
+  hasThumbnail: boolean,
+  targetWidth: number,
+  targetHeight: number
 ): Array<string> => {
+  // Bind calculators to the dynamic output width.
+  const calcPos = makeCalculateOverlayPosition(targetWidth);
+  const calcScale = makeCalculateScaleWidth(targetWidth);
   const filters = [
     cropParameters.length > 0
       ? [
-          'nullsrc=size=1920x1080:r=29.97[base]',
+          // Initialize a base canvas at the actual resolution (not hardcoded 1920x1080).
+          `nullsrc=size=${targetWidth}x${targetHeight}:r=29.97[base]`,
+          // Dynamically shift overlay horizontally over time using computed offsets.
           `[base][0:0]overlay='${generateTimeSequence(
-            calculateOverlayPosition,
-            cropParameters
+            calcPos,
+            cropParameters,
+            targetWidth
           )}':0:shortest=1[o]`,
+          // Dynamically scale to match target width over time; keep height auto and even.
           `[o]scale='${generateTimeSequence(
-            calculateScaleWidth,
-            cropParameters
+            calcScale,
+            cropParameters,
+            targetWidth
           )}':-1:eval=frame:flags=bicubic[s]`,
-          '[s]crop=1920:1080:0:0[c]'
+          // Ensure final output is exactly targetWidth x targetHeight.
+          `[s]crop=${targetWidth}:${targetHeight}:0:0[c]`
         ]
       : [],
     hasThumbnail ? `[1:2]setpts=PTS+${start / 1000}/TB[tn]` : []
@@ -493,13 +542,16 @@ const generateFilterChain = (
   return filters ? ['-filter_complex', filters] : [];
 };
 
+// Build ffmpeg args for post-processing using dynamic dimensions.
 const getFfmpegPostProcessArguments = (
   inputPath: string,
   outputPath: string,
   start: number,
   end: number,
   cropParameters: Array<CropParameters>,
-  hasThumbnail: boolean
+  hasThumbnail: boolean,
+  targetWidth: number,
+  targetHeight: number
 ): Array<string> =>
   [
     '-y',
@@ -509,7 +561,8 @@ const getFfmpegPostProcessArguments = (
     ['-ss', `${start / 1000}`],
     end ? ['-to', `${end / 1000}`] : [],
     ['-codec', 'copy'],
-    generateFilterChain(start, cropParameters, hasThumbnail),
+    // Build filter graph sized to the probed input dimensions.
+    generateFilterChain(start, cropParameters, hasThumbnail, targetWidth, targetHeight),
     cropParameters.length > 0
       ? [
           ['-map', '[c]'],
@@ -539,13 +592,28 @@ export const postProcessRecording = async (
   cropParameters: Array<CropParameters>
 ): Promise<void> => {
   const hasThumbnail = (await getStreamCount(inputPath)) > 2;
+  // Probe input dimensions to avoid hardcoded 1920x1080; keep safe defaults if probing fails.
+  let targetWidth = FULL_CROP_WIDTH;
+  let targetHeight = 1080;
+  try {
+    const dims = await getVideoDimensions(inputPath);
+    targetWidth = dims.width;
+    targetHeight = dims.height;
+  } catch (err) {
+    logger.warn(
+      `Unable to determine video dimensions; falling back to ${targetWidth}x${targetHeight}`
+    );
+  }
+
   const args = getFfmpegPostProcessArguments(
     inputPath,
     outputPath,
     start,
     end,
     cropParameters,
-    hasThumbnail
+    hasThumbnail,
+    targetWidth,
+    targetHeight
   );
 
   logger.debug(`Invoking ffmpeg with args: ${args.join(' ')}`);
